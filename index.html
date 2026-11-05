@@ -158,7 +158,9 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
 .note{font-size:13.5px;color:var(--muted)}
 .ytbox{position:absolute;inset:0}
 .ytbox iframe,.ytbox>div{width:100%;height:100%;border:0;display:block}
-.stage.yt .overlay{bottom:15%}
+.overlay.below{position:static;background:var(--stage);border-radius:12px;padding:12px 16px;min-height:76px;align-content:center}
+.overlay.below p{text-shadow:none}
+.overlay.below:empty,.overlay.below .o-en:empty+.o-vi:empty{min-height:0}
 .ytadd{display:grid;gap:6px}
 .ytadd-row{display:flex;gap:8px;flex-wrap:wrap}
 .ytadd-row input{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper)}
@@ -398,7 +400,26 @@ function toSec(s){
   if (p.length === 2) return p[0]*60 + p[1];
   return Number(s) || 0;
 }
-function cleanLine(l){ return l.replace(/\{[^}]*\}/g, "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim(); }
+const ENT = { gt: ">", lt: "<", amp: "&", quot: '"', "#39": "'", apos: "'", nbsp: " " };
+function cleanLine(l){
+  l = String(l || "").replace(/\{[^}]*\}/g, "").replace(/<[^>]+>/g, "");
+  for (let k = 0; k < 2; k++) l = l.replace(/&(gt|lt|amp|quot|#39|apos|nbsp);/g, (m, e) => ENT[e]);
+  return l.replace(/^\s*(>>|-)\s*/, "").replace(/\s*>>\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+/* gộp các mẩu câu bị cắt đôi (phụ đề tự động của YouTube hay bị vậy) thành câu trọn */
+function mergeCues(cs){
+  const out = [];
+  for (const c0 of cs){
+    const c = { start: c0.start, end: c0.end, en: cleanLine(c0.en), vi: cleanLine(c0.vi) };
+    if (!c.en && !c.vi) continue;
+    const p = out[out.length - 1];
+    if (p && p.en && c.en && !/[.?!…"”\])]$/.test(p.en) && c.start - p.end < 0.8 && c.end - p.start < 9 && p.en.length + c.en.length < 170){
+      p.end = Math.max(p.end, c.end); p.en += " " + c.en;
+      if (c.vi && p.vi !== c.vi) p.vi = (p.vi ? p.vi + " " : "") + c.vi;
+    } else out.push(c);
+  }
+  return out;
+}
 function parseSubs(text){
   text = text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
   const blocks = text.split(/\n\s*\n/);
@@ -438,16 +459,20 @@ function buildCues(enRaw, viRaw){
     cues = viRaw.map(c => ({ start: c.start, end: c.end, en: "", vi: c.lines.join(" ") }));
     viRaw = null;
   }
+  cues = mergeCues(cues);
   if (viRaw && viRaw.length){
     let j = 0;
     for (const c of cues){
-      while (j < viRaw.length && viRaw[j].end < c.start) j++;
-      let best = null, bo = 0;
-      for (let k = Math.max(0, j - 2); k < viRaw.length && viRaw[k].start < c.end + 0.5; k++){
-        const o = overlap(c, viRaw[k]);
-        if (o > bo){ bo = o; best = viRaw[k]; }
+      if (c.vi) continue;
+      while (j < viRaw.length && viRaw[j].end < c.start - 1) j++;
+      let best = null, bo = 0; const inside = [];
+      for (let k = j; k < viRaw.length && viRaw[k].start < c.end + 0.5; k++){
+        const v = viRaw[k], mid = (v.start + v.end) / 2;
+        if (mid >= c.start && mid < c.end) inside.push(cleanLine(v.lines.join(" ")));
+        const o = overlap(c, v);
+        if (o > bo){ bo = o; best = v; }
       }
-      if (best && !c.vi) c.vi = best.lines.join(" ");
+      c.vi = inside.length ? inside.join(" ") : best ? cleanLine(best.lines.join(" ")) : "";
     }
   }
   return cues.filter(c => c.en || c.vi);
@@ -897,6 +922,10 @@ function setStage(kind){
   video.hidden = kind !== "video";
   $("#ytBox").hidden = kind !== "yt";
   stage.classList.toggle("yt", kind === "yt");
+  // Với YouTube: đưa phụ đề xuống dưới khung video để không bị quảng cáo và nút của YouTube che
+  const ov = $("#overlay");
+  if (kind === "yt"){ ov.classList.add("below"); stage.after(ov); }
+  else { ov.classList.remove("below"); stage.appendChild(ov); }
   if (kind !== "video") stage.classList.remove("nomedia");
   if (kind !== "yt"){ ytCur = null; }
   document.querySelectorAll(".clip.on").forEach(c => c.classList.remove("on"));
@@ -965,7 +994,8 @@ async function openYT(id, title){
   ytCur = { id, title: title || "Video YouTube" };
   $("#nowTitle").textContent = ytCur.title;
   $("#nowMeta").textContent = "YouTube";
-  const saved = store.get("subs:" + id, null);
+  let saved = store.get("subs:" + id, null);
+  if (saved){ saved = mergeCues(saved); store.set("subs:" + id, saved); }
   cues = saved || [];
   watch = { i: -1, left: 0, done: false };
   renderList(); renderClips();
@@ -980,16 +1010,23 @@ async function openYT(id, title){
       playerVars: { playsinline: 1, rel: 0, cc_load_policy: saved ? 0 : 1, cc_lang_pref: "en", hl: "vi", start: start > 5 ? start : 0 },
       events: {
         onReady: () => { ytReady = true; yt.setPlaybackRate(settings.rate); onPlayState(); },
-        onStateChange: () => onPlayState(),
+        onStateChange: ev => { onPlayState(); if (ev.data === 1) ytCaptions(); },
         onError: ev => toast(ev.data === 101 || ev.data === 150 ? "Chủ video không cho phát trên trang khác. Hãy chọn video khác." : "YouTube báo lỗi khi mở video này.")
       }
     });
   } else {
     yt.loadVideoById({ videoId: id, startSeconds: start > 5 ? start : 0 });
     yt.setPlaybackRate(settings.rate);
-    try{ if (saved) yt.unloadModule("captions"); else { yt.loadModule("captions"); yt.setOption("captions", "track", { languageCode: "en" }); } }catch(e){}
+    try{ if (saved) ytCaptions(); else { yt.loadModule("captions"); yt.setOption("captions", "track", { languageCode: "en" }); } }catch(e){}
   }
   if (start > 5) toast("Tiếp tục từ " + fmt(start) + " lần trước bạn xem.");
+}
+/* Khi đã có phụ đề học thì tắt phụ đề riêng của YouTube, để chế độ "Ẩn" thật sự ẩn chữ */
+function ytCaptions(){
+  if (!ytReady) return;
+  try{
+    if (cues.length){ yt.setOption("captions", "track", {}); yt.unloadModule("captions"); }
+  }catch(e){}
 }
 async function attachYTSubs(files){
   if (!ytCur) return;
@@ -1006,11 +1043,11 @@ async function attachYTSubs(files){
   if (!enRaw && !viRaw){ toast("Không thấy câu phụ đề nào trong file đã chọn."); return; }
   const old = store.get("subs:" + ytCur.id, null);
   if (!enRaw && old && old.some(c => c.en)){
-    enRaw = old.map(c => ({ start: c.start, end: c.end, lines: [c.en] }));
+    enRaw = old.filter(c => c.en).map(c => ({ start: c.start, end: c.end, lines: [c.en] }));
   }
   cues = buildCues(enRaw, viRaw);
   store.set("subs:" + ytCur.id, cues);
-  try{ if (ytReady) yt.unloadModule("captions"); }catch(e){}
+  ytCaptions();
   watch = { i: -1, left: 0, done: false };
   renderList(); renderClips();
   if (dictOn) setDict(0);
