@@ -162,6 +162,8 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
 .overlay.below p{text-shadow:none}
 .overlay.below:empty,.overlay.below .o-en:empty+.o-vi:empty{min-height:0}
 .ytadd{display:grid;gap:6px}
+.bulk{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-left:4px solid var(--hi);border-radius:10px;padding:12px 14px;background:var(--paper)}
+.bulk>div{flex:1 1 320px;display:grid;gap:4px}
 .ytadd-row{display:flex;gap:8px;flex-wrap:wrap}
 .ytadd-row input{flex:1 1 260px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper)}
 .clips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
@@ -317,6 +319,14 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
         <button class="btn primary" type="submit">Mở video</button>
       </div>
     </form>
+    <div class="bulk">
+      <div>
+        <b>Nạp phụ đề cho nhiều đoạn một lúc</b>
+        <p class="note" style="margin:0">Tải phụ đề ở DownSub cho các đoạn bạn muốn học, rồi bấm nút bên cạnh và chọn tất cả file .srt trong thư mục Tải xuống (Downloads). Mẹo: bấm vào một file, rồi bấm Ctrl + A để chọn hết. Trang tự nhận ra file nào thuộc đoạn nào.</p>
+      </div>
+      <button class="btn primary" type="button" id="btnBulk">Nạp tất cả phụ đề</button>
+      <input type="file" id="bulkIn" multiple accept=".srt,.vtt" hidden>
+    </div>
     <div class="clips" id="myClips"></div>
     <div class="clips" id="clips"></div>
   </section>
@@ -823,6 +833,7 @@ function epKey(base){
   return { key: base.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() || base, s: null, e: null };
 }
 function addFiles(files){
+  if (files.length && files.every(f => /\.(srt|vtt)$/i.test(f.name)) && files.every(f => matchClip(f.name))){ bulkLoad(files); return; }
   if (mode === "yt" && ytCur && files.length && files.every(f => /\.(srt|vtt)$/i.test(f.name))){ attachYTSubs(files); return; }
   let nv = 0, ns = 0;
   for (const f of files){
@@ -1028,6 +1039,66 @@ function ytCaptions(){
     if (cues.length){ yt.setOption("captions", "track", {}); yt.unloadModule("captions"); }
   }catch(e){}
 }
+/* Nạp nhiều file phụ đề một lần, tự ghép vào đúng đoạn phim nhờ tên phim trong tên file */
+const normT = s => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/\bfriends\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+function matchClip(fileName){
+  const base = fileName.replace(/\.[^.]+$/, "").replace(/\s*\(\d+\)\s*$/, "").replace(/\[[^\]]*\]/g, " ");
+  const k = normT(base);
+  if (!k) return null;
+  const targets = CLIPS.map(c => ({ id: c[0], key: normT(c[3]) })).concat(store.get("myYT", []).map(m => ({ id: m.id, key: normT(m.title) })));
+  const exact = targets.find(t => t.key === k);
+  if (exact) return exact.id;
+  const A = new Set(k.split(" "));
+  let best = null, bs = 0;
+  for (const t of targets){
+    const B = t.key.split(" "); if (!B.length) continue;
+    const hit = B.filter(w => A.has(w)).length;
+    const sc = hit / Math.max(A.size, B.length);
+    if (sc > bs){ bs = sc; best = t; }
+  }
+  return bs >= 0.75 ? best.id : null;
+}
+async function bulkLoad(files){
+  const groups = new Map(); let miss = 0;
+  for (const f of files){
+    if (!/\.(srt|vtt)$/i.test(f.name)) continue;
+    const id = matchClip(f.name);
+    if (!id){ miss++; continue; }
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(f);
+  }
+  let ok = 0;
+  for (const [id, fs] of groups){ if (await saveSubsFor(id, fs)) ok++; }
+  renderClips();
+  if (ytCur && groups.has(ytCur.id)){ cues = store.get("subs:" + ytCur.id, []); ytCaptions(); watch = { i: -1, left: 0, done: false }; renderList(); if (dictOn) setDict(0); }
+  if (!ok && !miss){ toast("Không thấy file phụ đề (.srt) nào trong các file bạn chọn."); return; }
+  toast("Đã nạp phụ đề cho " + ok + " đoạn phim." + (miss ? " Có " + miss + " file không khớp với đoạn nào trong danh sách." : ""));
+}
+async function readSubGroup(files){
+  let enRaw = null, viRaw = null;
+  for (const f of files){
+    try{
+      const raw = parseSubs(await readText(f));
+      if (!raw.length) continue;
+      let lang = /vietnam|tiếng việt|tieng viet|[\[._\- (]vi[\]._\- )]/i.test(f.name) ? "vi" : /english|[\[._\- (]en[\]._\- )]/i.test(f.name) ? "en" : null;
+      if (!lang){ const vc = raw.filter(c => c.lines.some(l => VI_RE.test(l))).length; lang = vc > raw.length * 0.5 ? "vi" : "en"; }
+      if (lang === "vi") viRaw = raw; else enRaw = raw;
+    }catch(e){}
+  }
+  return { enRaw, viRaw };
+}
+async function saveSubsFor(id, files){
+  let { enRaw, viRaw } = await readSubGroup(files);
+  if (!enRaw && !viRaw) return null;
+  const old = store.get("subs:" + id, null);
+  if (!enRaw && old && old.some(c => c.en)) enRaw = old.filter(c => c.en).map(c => ({ start: c.start, end: c.end, lines: [c.en] }));
+  const cs = buildCues(enRaw, viRaw);
+  store.set("subs:" + id, cs);
+  return cs;
+}
+$("#btnBulk").onclick = () => $("#bulkIn").click();
+$("#bulkIn").onchange = e => { const fs = [...e.target.files]; e.target.value = ""; bulkLoad(fs); };
+
 async function attachYTSubs(files){
   if (!ytCur) return;
   let enRaw = null, viRaw = null;
