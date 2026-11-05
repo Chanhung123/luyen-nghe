@@ -334,6 +334,18 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
     <div class="clips" id="clips"></div>
   </section>
 
+  <section class="card" id="syncCard">
+    <div class="lib-head">
+      <h3>Chuyển phụ đề và sổ từ sang máy khác</h3>
+    </div>
+    <p class="note" style="margin:0">Phụ đề đã nạp, sổ từ và chỗ đang xem chỉ lưu trong trình duyệt của máy này. Muốn dùng trên điện thoại: bấm “Tạo file sao lưu” trên máy tính, gửi file đó sang điện thoại (qua Zalo, Messenger hoặc Google Drive), rồi mở trang này trên điện thoại và bấm “Khôi phục từ file”.</p>
+    <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" id="btnBackup">Tạo file sao lưu</button>
+      <button class="btn" type="button" id="btnRestore">Khôi phục từ file</button>
+      <input type="file" id="restoreIn" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
   <section class="card" id="libCard">
     <div class="lib-head">
       <h3>Kho phim của bạn</h3>
@@ -1112,6 +1124,48 @@ async function saveSubsFor(id, files){
   store.set("subs:" + id, cs);
   return cs;
 }
+/* ---------- Sao lưu / khôi phục sang máy khác ---------- */
+$("#btnBackup").onclick = () => {
+  const data = {};
+  try{ for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k.startsWith("lnqp:")) data[k.slice(5)] = JSON.parse(localStorage.getItem(k)); } }catch(e){}
+  const nSubs = Object.keys(data).filter(k => k.startsWith("subs:")).length;
+  const nVoc = (data.vocab || []).length;
+  if (!nSubs && !nVoc && !(data.myYT || []).length){ toast("Chưa có gì để sao lưu. Hãy nạp phụ đề hoặc lưu từ trước."); return; }
+  const blob = new Blob([JSON.stringify({ app: "luyen-nghe", v: 1, at: new Date().toISOString(), data })], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "luyen-nghe-sao-luu-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Đã tạo file sao lưu: phụ đề của " + nSubs + " video và " + nVoc + " từ. File nằm trong thư mục Tải xuống.");
+};
+$("#btnRestore").onclick = () => $("#restoreIn").click();
+$("#restoreIn").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  let obj;
+  try{ obj = JSON.parse(await f.text()); }catch(err){ toast("File này không đọc được. Hãy chọn đúng file sao lưu có đuôi .json."); return; }
+  if (!obj || obj.app !== "luyen-nghe" || !obj.data){ toast("Đây không phải file sao lưu của trang này."); return; }
+  const d = obj.data; let nSubs = 0, nVoc = 0;
+  for (const k of Object.keys(d)){
+    if (k.startsWith("subs:")){ store.set(k, d[k]); nSubs++; }
+    else if (k.startsWith("pos:")){ store.set(k, Math.max(store.get(k, 0), +d[k] || 0)); }
+  }
+  if (Array.isArray(d.myYT)){
+    const mine = store.get("myYT", []);
+    for (const m of d.myYT) if (m && m.id && !mine.some(x => x.id === m.id)) mine.push(m);
+    store.set("myYT", mine);
+  }
+  if (Array.isArray(d.vocab)){
+    const voc = store.get("vocab", []);
+    for (const v of d.vocab) if (v && v.w && !voc.some(x => x.w === v.w)){ voc.push(v); nVoc++; }
+    store.set("vocab", voc);
+  }
+  renderClips(); renderVocab();
+  if (mode === "yt" && ytCur){ const s = store.get("subs:" + ytCur.id, null); if (s){ cues = s; ytCaptions(); renderList(); } }
+  toast("Đã khôi phục phụ đề của " + nSubs + " video và thêm " + nVoc + " từ mới vào sổ.");
+};
+
 $("#btnBulk").onclick = () => $("#bulkIn").click();
 $("#bulkIn").onchange = e => { const fs = [...e.target.files]; e.target.value = ""; bulkLoad(fs); };
 
