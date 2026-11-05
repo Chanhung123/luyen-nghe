@@ -162,6 +162,12 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
 .overlay.below p{text-shadow:none}
 .overlay.below:empty,.overlay.below .o-en:empty+.o-vi:empty{min-height:0}
 .ytadd{display:grid;gap:6px}
+.sync{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;background:var(--paper);display:grid;gap:8px}
+.sync-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.sync-status{font-size:12.5px;border-radius:20px;padding:2px 10px;border:1px solid var(--line);color:var(--muted)}
+.sync-status.ok{border-color:var(--ok);color:var(--ok)}
+.sync-status.err{border-color:var(--bad);color:var(--bad)}
+.sync-steps{margin:0 0 10px;padding-left:20px;display:grid;gap:4px;font-size:14px}
 .bulk{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line);border-left:4px solid var(--hi);border-radius:10px;padding:12px 14px;background:var(--paper)}
 .bulk>div{flex:1 1 320px;display:grid;gap:4px}
 .ytadd-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -338,7 +344,34 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
     <div class="lib-head">
       <h3>Chuyển phụ đề và sổ từ sang máy khác</h3>
     </div>
-    <p class="note" style="margin:0">Phụ đề đã nạp, sổ từ và chỗ đang xem chỉ lưu trong trình duyệt của máy này. Muốn dùng trên điện thoại: bấm “Tạo file sao lưu” trên máy tính, gửi file đó sang điện thoại (qua Zalo, Messenger hoặc Google Drive), rồi mở trang này trên điện thoại và bấm “Khôi phục từ file”.</p>
+    <div class="sync">
+      <div class="sync-head">
+        <b>Tự đồng bộ giữa máy tính và điện thoại</b>
+        <span class="sync-status" id="syncStatus">Chưa kết nối</span>
+      </div>
+      <div id="syncOff">
+        <p class="note" style="margin:0 0 8px">Kết nối một lần trên mỗi máy. Sau đó phụ đề, sổ từ và chỗ đang xem tự lưu vào kho riêng tư <b>luyen-nghe-du-lieu</b> trên GitHub của bạn, máy nào mở trang cũng có.</p>
+        <ol class="sync-steps">
+          <li>Bấm <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><b>Mở trang tạo mã ↗</b></a> (cần đăng nhập GitHub).</li>
+          <li>Ô <b>Token name</b>: gõ <b>luyen-nghe</b>. Ô <b>Expiration</b>: chọn <b>No expiration</b> hoặc thời hạn dài nhất.</li>
+          <li>Mục <b>Repository access</b>: chọn <b>Only select repositories</b>, rồi chọn <b>luyen-nghe-du-lieu</b>.</li>
+          <li>Mục <b>Permissions</b>: bấm <b>Add permissions</b>, chọn <b>Contents</b>, đổi thành <b>Read and write</b>.</li>
+          <li>Bấm <b>Generate token</b>, bấm biểu tượng sao chép cạnh mã, rồi dán vào ô dưới đây và bấm <b>Kết nối</b>.</li>
+        </ol>
+        <div class="ytadd-row">
+          <input type="password" id="ghToken" placeholder="Dán mã bắt đầu bằng github_pat_..." autocomplete="off">
+          <button class="btn primary" type="button" id="btnConnect">Kết nối</button>
+        </div>
+        <p class="note" style="margin:6px 0 0">Trên điện thoại: mở trang này và dán cùng mã đó (gửi mã cho chính bạn qua Zalo để sao chép). Đừng gửi mã cho người khác.</p>
+      </div>
+      <div id="syncOn" hidden>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" type="button" id="btnSyncNow">Đồng bộ ngay</button>
+          <button class="btn" type="button" id="btnDisconnect">Ngắt kết nối trên máy này</button>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin:0">Không muốn kết nối? Vẫn có thể chuyển bằng file: bấm “Tạo file sao lưu” trên máy tính, gửi file sang điện thoại (Zalo, Messenger, Google Drive), rồi trên điện thoại bấm “Khôi phục từ file”.</p>
     <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn primary" type="button" id="btnBackup">Tạo file sao lưu</button>
       <button class="btn" type="button" id="btnRestore">Khôi phục từ file</button>
@@ -404,9 +437,10 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
 (function(){
 "use strict";
 const $ = s => document.querySelector(s);
+let onStoreChange = null;
 const store = {
   get(k, d){ try{ const v = localStorage.getItem("lnqp:" + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem("lnqp:" + k, JSON.stringify(v)); }catch(e){} }
+  set(k, v){ try{ localStorage.setItem("lnqp:" + k, JSON.stringify(v)); }catch(e){} if (onStoreChange) onStoreChange(k); }
 };
 const settings = Object.assign({ subMode:"both", autoPause:false, repeat:1, rate:1, blur:false, autoScroll:true, showVi:true }, store.get("settings", {}));
 const saveSettings = () => store.set("settings", settings);
@@ -746,6 +780,8 @@ $("#popSave").onclick = () => {
   const c = cues[popData.i] || {};
   const vocab = store.get("vocab", []);
   if (vocab.some(v => v.w === popData.w)){ toast("Từ “" + popData.w + "” đã có trong sổ."); return; }
+  const vdel = store.get("vocabDel", []);
+  if (vdel.includes(popData.w)) store.set("vocabDel", vdel.filter(x => x !== popData.w));
   vocab.unshift({ w: popData.w, s: c.en || "", vi: c.vi || "", ep: mode === "demo" ? "Bài mẫu" : mode === "yt" ? (ytCur ? ytCur.title : "") : (currentEp ? currentEp.title : "") });
   store.set("vocab", vocab); renderVocab();
   toast("Đã lưu “" + popData.w + "” vào sổ từ."); closePop();
@@ -766,7 +802,11 @@ function renderVocab(){
 }
 $("#vocab").addEventListener("click", e => {
   const d = e.target.closest("[data-del]"), s = e.target.closest("[data-say]");
-  if (d){ const vocab = store.get("vocab", []); vocab.splice(+d.dataset.del, 1); store.set("vocab", vocab); renderVocab(); }
+  if (d){
+    const vocab = store.get("vocab", []); const gone = vocab.splice(+d.dataset.del, 1)[0];
+    if (gone){ const del = store.get("vocabDel", []); if (!del.includes(gone.w)){ del.push(gone.w); store.set("vocabDel", del); } }
+    store.set("vocab", vocab); renderVocab();
+  }
   if (s) sayWord(s.dataset.say);
 });
 $("#vCopy").onclick = async () => {
@@ -1003,6 +1043,7 @@ document.addEventListener("click", e => {
   const id = d.dataset.delYt;
   const m = store.get("myYT", []).find(x => x.id === id);
   if (!confirm("Xóa video “" + (m ? m.title : id) + "” khỏi danh sách của bạn? Phụ đề đã nạp cho video này cũng bị xóa.")) return;
+  const ydel = store.get("myYTDel", []); if (!ydel.includes(id)){ ydel.push(id); store.set("myYTDel", ydel); }
   store.set("myYT", store.get("myYT", []).filter(x => x.id !== id));
   try{ localStorage.removeItem("lnqp:subs:" + id); localStorage.removeItem("lnqp:pos:yt:" + id); }catch(err){}
   renderClips();
@@ -1124,10 +1165,138 @@ async function saveSubsFor(id, files){
   store.set("subs:" + id, cs);
   return cs;
 }
+/* ---------- Tự đồng bộ qua kho GitHub riêng tư ---------- */
+const SYNC_REPO = "luyen-nghe-du-lieu", SYNC_FILE = "data.json";
+let gh = store.get("gh", null);
+let syncBusy = false, syncAgain = false, syncDirty = false, syncTimer = null, syncSuppress = false;
+function setSyncStatus(text, cls){ const s = $("#syncStatus"); s.textContent = text; s.className = "sync-status" + (cls ? " " + cls : ""); }
+function showSyncUI(){ $("#syncOff").hidden = !!gh; $("#syncOn").hidden = !gh; if (!gh) setSyncStatus("Chưa kết nối"); }
+async function ghApi(path, opts){
+  opts = opts || {};
+  return fetch("https://api.github.com" + path, Object.assign({ cache: "no-store" }, opts, {
+    headers: Object.assign({ Authorization: "Bearer " + gh.token, Accept: "application/vnd.github+json" }, opts.headers || {})
+  }));
+}
+function b64enc(str){ const b = new TextEncoder().encode(str); let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+function b64dec(b64){ const s = atob(b64.replace(/\s/g, "")); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new TextDecoder().decode(u); }
+function collectLocal(){
+  const out = { v: 1, subs: {}, pos: {}, vocab: store.get("vocab", []), vocabDel: store.get("vocabDel", []), myYT: store.get("myYT", []), myYTDel: store.get("myYTDel", []) };
+  try{
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k.startsWith("lnqp:subs:")) out.subs[k.slice(10)] = JSON.parse(localStorage.getItem(k));
+      else if (k.startsWith("lnqp:pos:")) out.pos[k.slice(9)] = +JSON.parse(localStorage.getItem(k)) || 0;
+    }
+  }catch(e){}
+  out.subs = Object.fromEntries(Object.entries(out.subs).sort((a, b) => a[0] < b[0] ? -1 : 1));
+  out.pos = Object.fromEntries(Object.entries(out.pos).sort((a, b) => a[0] < b[0] ? -1 : 1));
+  return out;
+}
+function mergeRemote(R){
+  if (!R || typeof R !== "object") return false;
+  syncSuppress = true; let changed = false;
+  try{
+    const vdel = [...new Set([...store.get("vocabDel", []), ...(R.vocabDel || [])])];
+    const ydel = [...new Set([...store.get("myYTDel", []), ...(R.myYTDel || [])])];
+    store.set("vocabDel", vdel); store.set("myYTDel", ydel);
+    for (const id of Object.keys(R.subs || {})){
+      if (ydel.includes(id) && !CLIPS.some(c => c[0] === id)) continue;
+      const loc = store.get("subs:" + id, null), rem = R.subs[id];
+      if (Array.isArray(rem) && rem.length && (!loc || rem.length > loc.length)){ store.set("subs:" + id, rem); changed = true; }
+    }
+    for (const id of ydel) if (!CLIPS.some(c => c[0] === id)){ try{ if (localStorage.getItem("lnqp:subs:" + id)){ localStorage.removeItem("lnqp:subs:" + id); changed = true; } }catch(e){} }
+    for (const k of Object.keys(R.pos || {})){ const v = +R.pos[k] || 0; if (v > store.get("pos:" + k, 0)) store.set("pos:" + k, v); }
+    const voc = store.get("vocab", []).filter(v => !vdel.includes(v.w));
+    for (const v of R.vocab || []) if (v && v.w && !vdel.includes(v.w) && !voc.some(x => x.w === v.w)){ voc.push(v); changed = true; }
+    store.set("vocab", voc);
+    const mine = store.get("myYT", []).filter(m => !ydel.includes(m.id));
+    for (const m of R.myYT || []) if (m && m.id && !ydel.includes(m.id) && !mine.some(x => x.id === m.id)){ mine.push(m); changed = true; }
+    store.set("myYT", mine);
+  } finally { syncSuppress = false; }
+  return changed;
+}
+function afterMerge(){
+  renderClips(); renderVocab();
+  if (mode === "yt" && ytCur){
+    const s = store.get("subs:" + ytCur.id, null);
+    if (s && s.length !== cues.length){ cues = s; ytCaptions(); watch = { i: -1, left: 0, done: false }; renderList(); if (dictOn) setDict(0); }
+  }
+}
+async function pullRemote(){
+  const path = "/repos/" + gh.owner + "/" + SYNC_REPO + "/contents/" + SYNC_FILE;
+  const r = await ghApi(path);
+  if (r.status === 404) return { sha: null, data: null };
+  if (!r.ok) throw new Error(String(r.status));
+  const j = await r.json();
+  let text = j.content ? b64dec(j.content) : "";
+  if (!text){ const r2 = await ghApi(path, { headers: { Accept: "application/vnd.github.raw+json" } }); text = await r2.text(); }
+  return { sha: j.sha, data: text ? JSON.parse(text) : null };
+}
+async function syncNow(){
+  if (!gh) return;
+  if (syncBusy){ syncAgain = true; return; }
+  syncBusy = true; setSyncStatus("Đang đồng bộ…");
+  try{
+    const path = "/repos/" + gh.owner + "/" + SYNC_REPO + "/contents/" + SYNC_FILE;
+    for (let attempt = 0; attempt < 3; attempt++){
+      const { sha, data } = await pullRemote();
+      if (data && mergeRemote(data)) afterMerge();
+      const local = collectLocal();
+      if (data && JSON.stringify(local) === JSON.stringify(data)){ syncDirty = false; break; }
+      const body = { message: "Đồng bộ dữ liệu luyện nghe", content: b64enc(JSON.stringify(local)) };
+      if (sha) body.sha = sha;
+      const r = await ghApi(path, { method: "PUT", body: JSON.stringify(body) });
+      if (r.ok){ syncDirty = false; break; }
+      if (r.status === 401 || r.status === 403 || r.status === 404) throw new Error(String(r.status));
+    }
+    const t = new Date();
+    setSyncStatus("Đã đồng bộ lúc " + t.getHours() + ":" + String(t.getMinutes()).padStart(2, "0"), "ok");
+  }catch(e){
+    const m = String(e.message);
+    setSyncStatus(m === "401" ? "Mã không còn dùng được, hãy kết nối lại" : (m === "403" || m === "404") ? "Mã chưa có quyền ghi vào kho" : "Chưa đồng bộ được, sẽ thử lại", "err");
+  }finally{
+    syncBusy = false;
+    if (syncAgain){ syncAgain = false; setTimeout(syncNow, 500); }
+  }
+}
+onStoreChange = k => {
+  if (!gh || syncSuppress) return;
+  if (/^(subs:|vocab|myYT|pos:)/.test(k)){
+    syncDirty = true;
+    if (!k.startsWith("pos:")){ clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 3000); }
+  }
+};
+setInterval(() => { if (gh && syncDirty && !syncBusy) syncNow(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (gh && document.visibilityState === "visible") syncNow(); });
+$("#btnConnect").onclick = async () => {
+  const token = $("#ghToken").value.trim();
+  if (!token){ toast("Hãy dán mã vào ô trước khi bấm Kết nối."); return; }
+  setSyncStatus("Đang kiểm tra mã…");
+  try{
+    const u = await fetch("https://api.github.com/user", { headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" } });
+    if (!u.ok){ setSyncStatus("Mã không đúng", "err"); toast("Mã không đúng hoặc đã hết hạn. Hãy sao chép lại mã từ GitHub."); return; }
+    const login = (await u.json()).login;
+    const r = await fetch("https://api.github.com/repos/" + login + "/" + SYNC_REPO, { headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" } });
+    if (!r.ok){ setSyncStatus("Mã chưa được cấp quyền kho", "err"); toast("Mã chưa được cấp quyền vào kho luyen-nghe-du-lieu. Xem lại bước 3."); return; }
+    gh = { token, owner: login };
+    store.set("gh", gh);
+    $("#ghToken").value = "";
+    showSyncUI();
+    toast("Đã kết nối. Trang đang đồng bộ dữ liệu.");
+    syncNow();
+  }catch(e){ setSyncStatus("Không kết nối được", "err"); toast("Không kết nối được GitHub. Hãy kiểm tra mạng rồi thử lại."); }
+};
+$("#btnSyncNow").onclick = () => syncNow();
+$("#btnDisconnect").onclick = () => {
+  if (!confirm("Ngắt kết nối trên máy này? Dữ liệu đã lưu vẫn còn, chỉ là máy này thôi không tự đồng bộ nữa.")) return;
+  gh = null; try{ localStorage.removeItem("lnqp:gh"); }catch(e){}
+  showSyncUI(); toast("Đã ngắt kết nối trên máy này.");
+};
+
 /* ---------- Sao lưu / khôi phục sang máy khác ---------- */
 $("#btnBackup").onclick = () => {
   const data = {};
-  try{ for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k.startsWith("lnqp:")) data[k.slice(5)] = JSON.parse(localStorage.getItem(k)); } }catch(e){}
+  try{ for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k.startsWith("lnqp:") && k !== "lnqp:gh") data[k.slice(5)] = JSON.parse(localStorage.getItem(k)); } }catch(e){}
   const nSubs = Object.keys(data).filter(k => k.startsWith("subs:")).length;
   const nVoc = (data.vocab || []).length;
   if (!nSubs && !nVoc && !(data.myYT || []).length){ toast("Chưa có gì để sao lưu. Hãy nạp phụ đề hoặc lưu từ trước."); return; }
@@ -1206,6 +1375,8 @@ $("#ytForm").addEventListener("submit", async e => {
   if (!id){ toast("Link chưa đúng. Hãy dán link dạng youtube.com/watch?v=..."); return; }
   let title = "Video YouTube";
   try{ const r = await fetch("https://noembed.com/embed?url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id)); const j = await r.json(); if (j.title) title = j.title; }catch(err){}
+  const ydel = store.get("myYTDel", []);
+  if (ydel.includes(id)) store.set("myYTDel", ydel.filter(x => x !== id));
   const mine = store.get("myYT", []).filter(m => m.id !== id);
   if (!CLIPS.some(c => c[0] === id)){ mine.unshift({ id, title }); store.set("myYT", mine.slice(0, 40)); }
   $("#ytUrl").value = "";
@@ -1276,6 +1447,8 @@ openDemo();
 applySettings();
 renderVocab();
 renderClips();
+showSyncUI();
+if (gh) syncNow();
 $("#btnClips").onclick = () => $("#ytCard").scrollIntoView({ behavior: "smooth", block: "start" });
 requestAnimationFrame(loop);
 })();
