@@ -96,8 +96,14 @@ kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-botto
 .pane.on{display:flex}
 .pane-tools{display:flex;gap:10px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center}
 .list{flex:1;overflow:auto;position:relative;padding:4px 0}
-.cue{display:grid;grid-template-columns:52px 1fr;gap:8px;padding:7px 12px 7px 8px;border-left:3px solid transparent}
-.cue.on{background:var(--hi-soft);border-left-color:var(--hi)}
+.cue{display:grid;grid-template-columns:52px 1fr;gap:8px;padding:9px 12px 9px 10px;margin:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.cue.on{background:var(--hi-soft);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.cue .cm{display:grid;gap:3px;align-content:start;justify-items:start}
+.cue .cn{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.cue .sc{font-size:11px;font-weight:700;border-radius:20px;padding:0 6px;border:1px solid var(--line);color:var(--muted)}
+.cue .sc.good{border-color:var(--ok);color:var(--ok)}
+.cue .sc.bad{border-color:var(--bad);color:var(--bad)}
+.prog{font-size:12.5px;color:var(--muted);margin-left:auto}
 .cue .ts{background:none;border:0;padding:2px 0;cursor:pointer;color:var(--accent);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:left;align-self:start;display:flex;gap:3px;align-items:center}
 .cue .ts svg{width:11px;height:11px;fill:currentColor}
 .cue p{margin:0}
@@ -121,16 +127,31 @@ kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-botto
 .result .ans .miss{color:var(--bad);font-weight:600;text-decoration:underline wavy}
 .result .vi{color:var(--muted);font-size:14px}
 
-.speak-text{font-size:20px;font-weight:600;line-height:1.45;text-wrap:balance}
-.speak-text .ok{color:var(--ok)}
-.speak-text .miss{color:var(--bad);text-decoration:underline wavy;text-underline-offset:4px}
-.speak-vi{color:var(--muted);font-size:14px}
-.mic{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;padding:13px;border-radius:999px;border:0;background:var(--bad);color:#fff;font-weight:700;font-size:16px;cursor:pointer}
+.speak{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px 16px;display:grid;gap:12px}
+.speak-top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center}
+.speak-turn{display:flex;align-items:center;gap:8px}
+.turn-tag{background:var(--accent);color:var(--accent-ink);font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:20px;padding:3px 10px}
+.speak-opts{display:flex;gap:14px;flex-wrap:wrap}
+.speak-text{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font-size:clamp(19px,2.2vw,25px);font-weight:600;line-height:1.3;min-height:1.4em}
+.sw{display:inline-flex;flex-direction:column;align-items:center;gap:2px}
+.sw .ipa{font-size:13px;font-weight:400;color:var(--muted);font-family:"Segoe UI","Lucida Sans Unicode","Arial Unicode MS",sans-serif;min-height:1.2em}
+.speak:not(.ipa-on) .ipa{display:none}
+.sw.ok>.w{color:var(--ok)}
+.sw.miss>.w{color:var(--bad);text-decoration:underline wavy;text-underline-offset:5px}
+.speak.hide-en .speak-text:not(.scored),.speak.hide-vi .speak-vi{filter:blur(6px);transition:filter .15s}
+.speak.hide-en .speak-text:not(.scored):hover,.speak.hide-vi .speak-vi:hover{filter:none}
+.speak-vi{color:var(--muted);font-size:15px;text-align:center}
+.speak-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.speak-result{display:grid;gap:4px;justify-items:center;text-align:center}
+.speak-result .score{font-family:var(--f-display);font-size:24px}
+.speak-result .score.good{color:var(--ok)}
+.speak-result .score.bad{color:var(--bad)}
+.mic{display:inline-flex;justify-content:center;align-items:center;gap:8px;padding:10px 24px;border-radius:999px;border:0;background:var(--bad);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
 .mic svg{width:22px;height:22px;fill:currentColor}
 .mic.on{background:var(--ink);color:var(--paper);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(185,50,42,.45)}50%{box-shadow:0 0 0 10px rgba(185,50,42,0)}}
 @media (prefers-reduced-motion:reduce){.mic.on{animation:none}}
-.speak-live{font-size:14px;color:var(--muted);font-style:italic}
+.speak-live{font-size:14px;color:var(--muted);font-style:italic;text-align:center}
 .result .heard{font-size:13.5px;color:var(--muted)}
 .vocab{list-style:none;margin:0;padding:0}
 .vocab li{padding:10px 12px;border-bottom:1px solid var(--line);display:grid;gap:3px}
@@ -274,18 +295,40 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
         </div>
       </div>
 
+      <section class="speak" id="speakPanel" aria-label="Luyện nói">
+        <div class="speak-top">
+          <div class="speak-turn"><span class="turn-tag">Lượt của bạn</span><span class="num" id="sNum">Câu 1 / 1</span></div>
+          <div class="speak-opts">
+            <label class="toggle" for="sAuto"><input type="checkbox" id="sAuto">Tự ghi âm sau mỗi câu</label>
+            <label class="toggle" for="showIPA"><input type="checkbox" id="showIPA">Phiên âm</label>
+          </div>
+        </div>
+        <div class="speak-text" id="sText"></div>
+        <div class="speak-vi" id="sVi"></div>
+        <div class="speak-live" id="sLive" hidden></div>
+        <div class="speak-result" id="sRes" hidden></div>
+        <div class="speak-actions">
+          <button class="btn" id="sPrev" type="button" title="Câu trước" aria-label="Câu trước">←</button>
+          <button class="btn" id="sPlay" type="button">Nghe câu mẫu</button>
+          <button class="btn" id="sSlow" type="button">Nghe chậm</button>
+          <button class="btn" id="sMine" type="button" disabled>Nghe lại giọng bạn</button>
+          <button class="mic" id="sMic" type="button"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg><span id="sMicT">Ghi âm</span></button>
+          <button class="btn" id="sNext" type="button" title="Câu sau" aria-label="Câu sau">→</button>
+        </div>
+        <p class="note" id="sSupport" style="margin:0;text-align:center" hidden></p>
+      </section>
+
       <div class="nowline">
         <h2 id="nowTitle">Bài mẫu: Ở quán cà phê</h2>
         <span class="meta" id="nowMeta"></span>
       </div>
-      <div class="keys">Phím tắt: <kbd>Cách</kbd> phát/dừng · <kbd>←</kbd> câu trước · <kbd>→</kbd> câu sau · <kbd>R</kbd> nghe lại · <kbd>H</kbd> đổi kiểu phụ đề · <kbd>B</kbd> che chữ. Bấm vào một từ bất kỳ để tra nghĩa.</div>
+      <div class="keys">Phím tắt: <kbd>Cách</kbd> phát/dừng · <kbd>←</kbd> câu trước · <kbd>→</kbd> câu sau · <kbd>R</kbd> nghe lại · <kbd>H</kbd> đổi kiểu phụ đề · <kbd>B</kbd> che chữ · <kbd>M</kbd> ghi âm. Bấm vào một từ bất kỳ để tra nghĩa.</div>
     </div>
 
     <aside class="side">
       <div class="tabs" role="tablist">
         <button role="tab" id="tab-sub" aria-selected="true" data-pane="pSub" type="button">Phụ đề</button>
         <button role="tab" id="tab-dict" aria-selected="false" data-pane="pDict" type="button">Chép chính tả</button>
-        <button role="tab" id="tab-speak" aria-selected="false" data-pane="pSpeak" type="button">Luyện nói</button>
         <button role="tab" id="tab-voc" aria-selected="false" data-pane="pVoc" type="button">Sổ từ <span id="vocCount"></span></button>
       </div>
       <div class="pane on" id="pSub">
@@ -293,6 +336,7 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
           <label class="toggle" for="blur"><input type="checkbox" id="blur">Che chữ tiếng Anh</label>
           <label class="toggle" for="showVi"><input type="checkbox" id="showVi" checked>Hiện tiếng Việt</label>
           <label class="toggle" for="autoScroll"><input type="checkbox" id="autoScroll" checked>Tự cuộn</label>
+          <span class="prog" id="prog"></span>
         </div>
         <div class="list" id="list"></div>
       </div>
@@ -316,27 +360,6 @@ section.card h3{font-family:var(--f-display);font-size:19px;margin:0}
             <button class="btn" id="dShow" type="button">Xem đáp án</button>
           </div>
           <div class="result" id="dRes" hidden></div>
-        </div>
-      </div>
-      <div class="pane" id="pSpeak">
-        <div class="dict">
-          <p class="note" style="margin:0">Nghe câu mẫu, rồi bấm nút micro và đọc lại câu đó. Máy chấm từng từ: <b style="color:var(--ok)">xanh</b> là đúng, <b style="color:var(--bad)">đỏ</b> là máy chưa nghe ra.</p>
-          <div class="row">
-            <button class="btn small" id="sPrev" type="button">← Câu trước</button>
-            <span class="num" id="sNum">Câu 1 / 1</span>
-            <button class="btn small" id="sNext" type="button">Câu sau →</button>
-          </div>
-          <div class="speak-text" id="sText"></div>
-          <div class="speak-vi" id="sVi"></div>
-          <div class="row">
-            <button class="btn" id="sPlay" type="button">Nghe câu mẫu</button>
-            <button class="btn" id="sSlow" type="button">Nghe chậm</button>
-          </div>
-          <button class="mic" id="sMic" type="button"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg><span id="sMicT">Bấm để nói</span></button>
-          <div class="speak-live" id="sLive" hidden></div>
-          <label class="toggle" for="sAuto"><input type="checkbox" id="sAuto">Tự bật micro ngay sau khi nghe mẫu</label>
-          <div class="result" id="sRes" hidden></div>
-          <p class="note" id="sSupport" style="margin:0" hidden></p>
         </div>
       </div>
       <div class="pane" id="pVoc">
@@ -719,7 +742,9 @@ function loop(now){
     else {
       watch.done = true;
       if (settings.autoPause || singleShot){ p.pause(); singleShot = false; }
-      if (sAutoPending){ sAutoPending = false; setTimeout(startSpeak, 250); }
+      if (p.paused && !dictOn && !recActive && $("#sAuto").checked && cues[watch.i] && cues[watch.i].en){
+        const wi = watch.i; setTimeout(() => { if (sIdx !== wi) setSpeak(wi); startSpeak(); }, 250);
+      }
     }
   }
   if (a !== activeIdx){ activeIdx = a; renderActive(); }
@@ -753,10 +778,21 @@ function renderList(){
   }
   if (!cues.length){ list.innerHTML = '<div class="empty">Tập này chưa có phụ đề. Hãy chọn thêm file .srt có cùng tên với phim.</div>'; return; }
   list.innerHTML = cues.map((c, i) =>
-    '<div class="cue" data-i="' + i + '"><button class="ts" type="button" data-i="' + i + '" title="Nghe từ câu này"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' + fmt(c.start) + '</button><div>' +
+    '<div class="cue" data-i="' + i + '"><div class="cm"><span class="cn">#' + (i + 1) + '</span><button class="ts" type="button" data-i="' + i + '" title="Nghe từ câu này"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' + fmt(c.start) + '</button>' + scoreBadge(i) + '</div><div>' +
     (c.en ? '<p class="en">' + wordsHtml(c.en, i) + "</p>" : "") +
     (c.vi ? '<p class="vi">' + esc(c.vi) + "</p>" : "") + "</div></div>").join("");
   activeIdx = -2;
+  renderProgress();
+}
+function scoreBadge(i){
+  const b = store.get("best:" + speakKey(), {})[i];
+  return b == null ? "" : '<span class="sc ' + (b >= 70 ? "good" : b < 40 ? "bad" : "") + '" title="Điểm nói cao nhất">' + b + "%</span>";
+}
+function renderProgress(){
+  const ids = cues.map((c, i) => i).filter(i => cues[i].en);
+  const best = store.get("best:" + speakKey(), {});
+  const done = ids.filter(i => best[i] != null).length;
+  $("#prog").textContent = ids.length ? "Đã luyện nói " + done + "/" + ids.length + " câu" : "";
 }
 function renderActive(){
   const list = $("#list");
@@ -771,11 +807,13 @@ function renderActive(){
         list.scrollTo({ top: Math.max(0, top), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       }
     }
+    if (c.en && activeIdx !== sIdx && !recActive) setSpeak(activeIdx);
   }
   renderOverlay();
 }
 function renderOverlay(){
   const c = activeIdx >= 0 ? cues[activeIdx] : null;
+  applySpeakView();
   const m = dictOn ? "none" : settings.subMode;
   $("#oEn").innerHTML = c && (m === "both" || m === "en") && c.en ? wordsHtml(c.en, activeIdx) : "";
   $("#oVi").textContent = c && (m === "both" || m === "vi") ? c.vi : "";
@@ -856,7 +894,7 @@ $("#vCopy").onclick = async () => {
 
 /* ---------- Chép chính tả ---------- */
 let dictOn = false, dIdx = 0;
-let speakOn = false, sIdx = 0, sAutoPending = false, recActive = false;
+let speakOn = true, sIdx = -1, recActive = false;
 const norm = s => s.toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9'\s]/g, " ").split(/\s+/).filter(Boolean);
 function lcsMatch(a, b){
   const n = a.length, m = b.length, dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
@@ -914,31 +952,72 @@ const TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty"
 function numWord(n){ n = +n; if (n < 20) return ONES[n]; if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : ""); return String(n); }
 const SAME = { ok: "okay", mr: "mister", ms: "miss", til: "till", gonna: "going to", wanna: "want to", "'cause": "because", cause: "because" };
 function normSpeak(s){
-  return norm(String(s || "").replace(/(\d),(\d)/g, "$1$2")).flatMap(w => {
+  s = String(s || "").replace(/(\d),(\d)/g, "$1$2")
+    .replace(/\bcan['’]t\b/gi, "can not").replace(/\bwon['’]t\b/gi, "will not").replace(/n['’]t\b/gi, " not")
+    .replace(/['’]m\b/gi, " am").replace(/['’]re\b/gi, " are").replace(/['’]ve\b/gi, " have").replace(/['’]ll\b/gi, " will");
+  return norm(s).flatMap(w => {
     if (/^\d+$/.test(w)) return numWord(w).split(" ");
     if (SAME[w]) return SAME[w].split(" ");
     return [w];
   });
 }
 function speakKey(){ return mode === "yt" && ytCur ? "yt:" + ytCur.id : mode === "video" && currentEp ? currentEp.key : "demo"; }
+/* phiên âm IPA: lấy miễn phí từ dictionaryapi.dev, lưu lại để lần sau khỏi tải */
+let ipaCache = null; const ipaWait = new Set();
+function ipaKey(w){ return String(w).toLowerCase().replace(/[’]/g, "'").replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""); }
+async function loadIPA(){
+  if (!settings.ipa) return;
+  if (!ipaCache) ipaCache = store.get("ipa", {});
+  const spans = [...document.querySelectorAll("#sText .ipa[data-k]")];
+  for (const sp of spans){ const k = sp.dataset.k; if (ipaCache[k] != null) sp.textContent = ipaCache[k]; }
+  for (const sp of spans){
+    const k = sp.dataset.k;
+    if (!k || ipaCache[k] != null || ipaWait.has(k)) continue;
+    ipaWait.add(k);
+    try{
+      const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(k));
+      let ipa = "";
+      if (r.ok){ const j = await r.json(); const e = j[0] || {}; ipa = e.phonetic || ((e.phonetics || []).find(p => p.text) || {}).text || ""; }
+      else if (r.status !== 404){ ipaWait.delete(k); continue; }
+      ipaCache[k] = ipa; store.set("ipa", ipaCache);
+    }catch(e){ ipaWait.delete(k); continue; }
+    ipaWait.delete(k);
+    document.querySelectorAll('#sText .ipa[data-k="' + CSS.escape(k) + '"]').forEach(x => x.textContent = ipaCache[k]);
+  }
+}
+function applySpeakView(){
+  const sp = $("#speakPanel"), m = settings.subMode;
+  sp.classList.toggle("ipa-on", !!settings.ipa);
+  sp.classList.toggle("hide-en", m === "none" || m === "vi");
+  sp.classList.toggle("hide-vi", m === "none" || m === "en");
+}
 function setSpeak(i){
   const ids = dictCues();
-  if (!ids.length){ $("#sNum").textContent = "Chưa có câu tiếng Anh"; $("#sText").textContent = ""; $("#sVi").textContent = ""; return; }
+  if (!ids.length){ sIdx = -1; $("#sNum").textContent = "Chưa có câu để luyện"; $("#sText").innerHTML = '<span class="note" style="font-size:14px;font-weight:400">Chọn một đoạn phim đã có phụ đề để bắt đầu luyện nói.</span>'; $("#sVi").textContent = ""; $("#sRes").hidden = true; return; }
   let k = ids.indexOf(i); if (k < 0){ k = ids.findIndex(x => x >= i); if (k < 0) k = ids.length - 1; }
   sIdx = ids[k];
   const best = store.get("best:" + speakKey(), {})[sIdx];
   $("#sNum").textContent = "Câu " + (k + 1) + " / " + ids.length + (best != null ? " · Điểm cao nhất " + best + "%" : "");
-  $("#sText").textContent = cues[sIdx].en;
+  const t = $("#sText"); t.classList.remove("scored");
+  t.innerHTML = cues[sIdx].en.split(/\s+/).filter(Boolean).map(w => '<span class="sw"><span class="w" data-w="' + esc(w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9'’]+$/g, "") || w) + '" data-i="' + sIdx + '">' + esc(w) + '</span><span class="ipa" data-k="' + esc(ipaKey(w)) + '"></span></span>').join("");
   $("#sVi").textContent = cues[sIdx].vi || "";
   $("#sRes").hidden = true; $("#sLive").hidden = true;
   if (myAudio){ URL.revokeObjectURL(myAudio); myAudio = null; }
+  $("#sMine").disabled = true;
+  applySpeakView(); loadIPA();
 }
-function sStep(dir){ if (recActive) stopSpeak(); const ids = dictCues(); const k = ids.indexOf(sIdx); if (k + dir >= 0 && k + dir < ids.length) setSpeak(ids[k + dir]); }
-function micUI(on){ $("#sMic").classList.toggle("on", on); $("#sMicT").textContent = on ? "Đang nghe… bấm để dừng" : "Bấm để nói"; }
+function sStep(dir){
+  if (recActive) stopSpeak();
+  const ids = dictCues(); if (!ids.length) return;
+  let k = ids.indexOf(sIdx); if (k < 0) k = 0; else k += dir;
+  if (k < 0 || k >= ids.length) return;
+  setSpeak(ids[k]); goTo(ids[k], { once: true });
+}
+function micUI(on){ $("#sMic").classList.toggle("on", on); $("#sMicT").textContent = on ? "Đang nghe… bấm để dừng" : "Ghi âm"; }
 async function startSpeak(){
   if (recActive){ stopSpeak(); return; }
   const c = cues[sIdx]; if (!c || !c.en) return;
-  P().pause(); sAutoPending = false;
+  P().pause();
   recActive = true; sAlts = []; sInterim = "";
   micUI(true); $("#sRes").hidden = true;
   const live = $("#sLive"); live.hidden = false; live.textContent = "Hãy đọc to câu ở trên…";
@@ -1012,30 +1091,34 @@ function finishSpeak(){
   const real = wordOk.filter(v => v !== null).length;
   const good = wordOk.filter(v => v === true).length;
   const pct = SR ? (real ? Math.round(good / real * 100) : 0) : null;
-  $("#sText").innerHTML = exp.map((w, k) => wordOk[k] === null || !SR ? esc(w) : '<span class="' + (wordOk[k] ? "ok" : "miss") + '">' + esc(w) + "</span>").join(" ");
+  if (SR){
+    const t = $("#sText"); t.classList.add("scored");
+    t.querySelectorAll(".sw").forEach((sw, k) => { if (wordOk[k] !== null && wordOk[k] !== undefined) sw.classList.add(wordOk[k] ? "ok" : "miss"); });
+  }
   if (pct != null){
     const key = "best:" + speakKey(); const best = store.get(key, {});
     if (best[sIdx] == null || pct > best[sIdx]){ best[sIdx] = pct; store.set(key, best); }
+    const card = document.querySelector('#list .cue[data-i="' + sIdx + '"] .cm');
+    if (card){ const old = card.querySelector(".sc"); if (old) old.remove(); card.insertAdjacentHTML("beforeend", scoreBadge(sIdx)); }
+    renderProgress();
   }
   const msg = pct == null ? "Đã ghi âm" : pct >= 90 ? "Tuyệt vời!" : pct >= 70 ? "Khá tốt!" : pct >= 40 ? "Cố lên, gần được rồi" : "Thử lại nhé";
   const res = $("#sRes"); res.hidden = false;
-  res.innerHTML = '<div class="score">' + (pct == null ? "" : pct + "% · ") + msg + "</div>" +
+  res.innerHTML = '<div class="score ' + (pct == null ? "" : pct >= 70 ? "good" : pct < 40 ? "bad" : "") + '">' + (pct == null ? "" : pct + "% · ") + msg + "</div>" +
     (pct == null ? '<div class="note">Trình duyệt này chưa chấm điểm được giọng nói. Hãy dùng Chrome, Cốc Cốc hoặc Edge để được chấm điểm. Bạn vẫn nghe lại được giọng mình.</div>'
-      : '<div class="heard">Máy nghe bạn nói: ' + (heard ? "“" + esc(heard) + "”" : "(không nghe rõ)") + "</div>") +
-    '<div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn small" type="button" id="sMine" ' + (myAudio ? "" : "disabled") + '>Nghe giọng bạn</button>' +
-    '<button class="btn small" type="button" id="sAgain">Nghe mẫu</button>' +
-    '<button class="btn small primary" type="button" id="sGoNext">Câu sau →</button></div>';
-  $("#sMine").onclick = () => { if (myAudio){ P().pause(); const a = new Audio(myAudio); a.play().catch(() => toast("Không phát được bản ghi.")); } };
-  $("#sAgain").onclick = () => goTo(sIdx, { once: true });
-  $("#sGoNext").onclick = () => sStep(1);
+      : '<div class="heard">Máy nghe bạn nói: ' + (heard ? "“" + esc(heard) + "”" : "(không nghe rõ)") + "</div>");
 }
+$("#sMine").onclick = () => { if (myAudio){ P().pause(); const a = new Audio(myAudio); a.play().catch(() => toast("Không phát được bản ghi.")); } };
 $("#sMic").onclick = () => startSpeak();
-$("#sPlay").onclick = () => { if (recActive) stopSpeak(); P().setRate(settings.rate); if ($("#sAuto").checked) sAutoPending = true; goTo(sIdx, { once: true }); };
+$("#sPlay").onclick = () => { if (recActive) stopSpeak(); if (sIdx < 0) return; P().setRate(settings.rate); goTo(sIdx, { once: true }); };
 $("#sSlow").onclick = () => {
-  if (recActive) stopSpeak();
-  P().setRate(0.75); if ($("#sAuto").checked) sAutoPending = true; goTo(sIdx, { once: true });
+  if (recActive) stopSpeak(); if (sIdx < 0) return;
+  P().setRate(0.75); goTo(sIdx, { once: true });
   setTimeout(() => P().setRate(settings.rate), ((cues[sIdx].end - cues[sIdx].start) / 0.75 + 1.5) * 1000);
 };
+if (settings.ipa === undefined) settings.ipa = true;
+$("#showIPA").checked = !!settings.ipa;
+$("#showIPA").onchange = () => { settings.ipa = $("#showIPA").checked; saveSettings(); applySpeakView(); loadIPA(); };
 $("#sPrev").onclick = () => sStep(-1);
 $("#sNext").onclick = () => sStep(1);
 $("#sAuto").checked = !!store.get("sAuto", false);
@@ -1048,10 +1131,6 @@ document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click
   document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === b.dataset.pane));
   dictOn = b.dataset.pane === "pDict";
   if (dictOn){ setDict(Math.max(0, curIdx())); }
-  const wasSpeak = speakOn;
-  speakOn = b.dataset.pane === "pSpeak";
-  if (speakOn && !wasSpeak) setSpeak(Math.max(0, curIdx()));
-  if (!speakOn && recActive) stopSpeak();
   renderOverlay();
   if (b.dataset.pane === "pSub"){ activeIdx = -2; }
 }));
@@ -1167,9 +1246,8 @@ function setStage(kind){
   $("#ytBox").hidden = kind !== "yt";
   stage.classList.toggle("yt", kind === "yt");
   // Với YouTube: đưa phụ đề xuống dưới khung video để không bị quảng cáo và nút của YouTube che
-  const ov = $("#overlay");
-  if (kind === "yt"){ ov.classList.add("below"); stage.after(ov); }
-  else { ov.classList.remove("below"); stage.appendChild(ov); }
+  // Với YouTube: câu đang nói hiện ở khung Luyện nói ngay dưới video, nên không chồng phụ đề lên video (tránh quảng cáo che)
+  $("#overlay").hidden = kind === "yt";
   if (kind !== "video") stage.classList.remove("nomedia");
   if (kind !== "yt"){ ytCur = null; }
   document.querySelectorAll(".clip.on").forEach(c => c.classList.remove("on"));
@@ -1614,6 +1692,7 @@ document.addEventListener("keydown", e => {
   else if (k === "arrowleft"){ e.preventDefault(); prev(); }
   else if (k === "arrowright"){ e.preventDefault(); next(); }
   else if (k === "r"){ repeat(); }
+  else if (k === "m"){ startSpeak(); }
   else if (k === "h"){ settings.subMode = SUB_ORDER[(SUB_ORDER.indexOf(settings.subMode) + 1) % 4]; $("#subMode").value = settings.subMode; saveSettings(); renderOverlay(); toast("Phụ đề trên phim: " + SUB_NAME[settings.subMode]); }
   else if (k === "b"){ settings.blur = !settings.blur; $("#blur").checked = settings.blur; saveSettings(); applySettings(); toast(settings.blur ? "Đã che chữ tiếng Anh" : "Đã hiện chữ tiếng Anh"); }
   else if (k === "escape"){ closePop(); }
